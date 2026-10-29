@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { RoomReading } from '@/lib/video-room'
+import { buildRoomScene } from '@/lib/video-room-scene'
 
 const FRAME_COUNT = 8
 const FRAME_WIDTH = 768
@@ -62,16 +64,32 @@ export function VideoRoomClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ frames }),
       })
-      const body = (await response.json().catch(() => ({}))) as { url?: string; message?: string }
-      if (!response.ok || !body.url) {
+      const body = (await response.json().catch(() => ({}))) as {
+        reading?: unknown
+        message?: string
+      }
+      if (!response.ok || !body.reading) {
         setPhase({
           kind: 'error',
-          message: body.message ?? `The room could not be built (${response.status}).`,
+          message: body.message ?? `The room could not be read (${response.status}).`,
         })
         return
       }
+      setPhase({ kind: 'working', step: 'Building the room…' })
+      const reading = RoomReading.parse(body.reading)
+      const { graph } = buildRoomScene(reading)
+      const saved = await fetch('/api/scenes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `${reading.name} (from video)`, graph }),
+      })
+      if (!saved.ok) {
+        setPhase({ kind: 'error', message: `Saving the room failed (${saved.status}).` })
+        return
+      }
+      const meta = (await saved.json()) as { id: string }
       setPhase({ kind: 'working', step: 'Opening the room…' })
-      router.push(body.url)
+      router.push(`/project/${meta.id}`)
     } catch (error) {
       setPhase({ kind: 'error', message: error instanceof Error ? error.message : String(error) })
     }

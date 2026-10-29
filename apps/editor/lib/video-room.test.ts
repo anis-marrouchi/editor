@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { AnyNode } from '@pascal-app/core/schema'
-import { buildRoomScene, parseRoomReading } from './video-room'
+import { parseRoomReading } from './video-room'
+import { buildRoomScene } from './video-room-scene'
 
 const answer = `\`\`\`json
 {
